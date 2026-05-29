@@ -159,16 +159,22 @@
       </div>
     </div>
     <div class="detail-footer" id="detail-footer" style="display:none">
-      <div class="footer-btns">
-        <button class="btn-imagem" id="btn-imagem" onclick="gerarImagem()">
-          <span id="imagem-icon">📸</span>
-          <span id="imagem-label">Gerar Imagem</span>
-        </button>
-        <button class="btn-copiar" id="btn-copiar" onclick="copiarMensagem()">
-          <span id="copiar-icon">📋</span>
-          <span id="copiar-label">Copiar Texto</span>
-        </button>
-      </div>
+<div class="footer-btns">
+  <button class="btn-imagem" id="btn-imagem" onclick="gerarImagem()">
+    <span id="imagem-icon">📸</span>
+    <span id="imagem-label">Gerar Imagem</span>
+  </button>
+
+  <button class="btn-copiar" id="btn-copiar" onclick="copiarMensagem()">
+    <span id="copiar-icon">📋</span>
+    <span id="copiar-label">Copiar Texto</span>
+  </button>
+
+  <button class="btn-whatsapp" id="btn-whatsapp" onclick="cobrarClienteAtual()">
+    <span>💬</span>
+    <span>Cobrar Cliente</span>
+  </button>
+</div>
     </div>
   </div>
 </div>
@@ -179,12 +185,59 @@
   <span id="app-version">v—</span>
 </footer>
 
+<div class="phone-overlay" id="phone-overlay">
+  <div class="phone-modal">
+    <div class="phone-modal-header">
+      <div>
+        <div class="phone-modal-eyebrow">Contato do cliente</div>
+        <div class="phone-modal-title">Informar WhatsApp</div>
+      </div>
+      <button class="phone-modal-close" onclick="fecharModalTelefone()">✕</button>
+    </div>
+
+    <div class="phone-modal-body">
+      <p class="phone-modal-text">
+        Este cliente ainda não possui telefone salvo. Informe o WhatsApp para salvar na aba Contatos e abrir a cobrança.
+      </p>
+
+      <div class="phone-client-box">
+        <span>Cliente</span>
+        <strong id="phone-client-name">—</strong>
+      </div>
+
+      <label class="phone-label" for="phone-input">WhatsApp com DDD</label>
+      <input
+        type="text"
+        id="phone-input"
+        class="phone-input"
+        placeholder="Ex: 85999999999"
+        autocomplete="off"
+      >
+
+      <div class="phone-hint">
+        O sistema adiciona o código do Brasil automaticamente quando necessário.
+      </div>
+    </div>
+
+    <div class="phone-modal-actions">
+      <button class="phone-btn-secondary" onclick="fecharModalTelefone()">
+        Cancelar
+      </button>
+      <button class="phone-btn-primary" onclick="salvarTelefoneModal()">
+        Salvar e cobrar
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="js/config.js"></script>
 <script src="js/config-loader.js"></script>
 <script src="js/state.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/api.js"></script>
+<script src="js/contacts.js"></script>
+<script src="js/whatsapp.js"></script>
 <script src="js/detail.js"></script>
 <script src="js/table.js"></script>
 <script src="js/modal.js"></script>
