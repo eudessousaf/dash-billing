@@ -172,12 +172,15 @@ function linhaTemVencimentoNoStatus(r, statusFiltro) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  return getVencimentosLinha(r).some(v => {
-    if (statusFiltro === 'red') return v.data < hoje;
-    if (statusFiltro === 'yellow') return mesmoDia(v.data, hoje);
-    if (statusFiltro === 'green') return v.data > hoje;
-    return true;
-  });
+  const vencAtual = getVencimentoAtualLinha(r);
+
+  if (!vencAtual || !vencAtual.data) return false;
+
+  if (statusFiltro === 'red') return vencAtual.data < hoje;
+  if (statusFiltro === 'yellow') return mesmoDia(vencAtual.data, hoje);
+  if (statusFiltro === 'green') return vencAtual.data > hoje;
+
+  return true;
 }
 
 

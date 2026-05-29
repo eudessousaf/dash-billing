@@ -1189,3 +1189,433 @@ git push
 4. Nunca publique arquivos com credenciais.
 
 5. Sempre mantenha `.env.example` e `config.example.js` atualizados quando adicionar novas configurações.
+
+---
+
+## 39. Atualização importante — regra da última data de vencimento informada
+
+### Objetivo
+
+A planilha `Base` possui vencimentos em até 4 parcelas. O dashboard deve considerar como vencimento principal **a última data preenchida** entre:
+
+```txt
+Vencimento 1
+Vencimento 2
+Vencimento 3
+Vencimento 4
+```
+
+Ou seja, se a linha tiver:
+
+```txt
+Vencimento 1 = 18/04/2025
+Vencimento 2 = 23/10/2025
+Vencimento 3 = vazio
+Vencimento 4 = vazio
+```
+
+O dashboard deve usar:
+
+```txt
+23/10/2025
+```
+
+E não mais o vencimento antigo `18/04/2025`.
+
+### Arquivo alterado
+
+```txt
+public/js/utils.js
+```
+
+### Função responsável por escolher o vencimento atual
+
+```js
+function getVencimentoAtualLinha(r) {
+  const vencs = getVencimentosLinha(r);
+
+  if (!vencs.length) {
+    return { data: null, texto: '—', numero: null };
+  }
+
+  // Regra atual:
+  // usa sempre a última coluna de vencimento preenchida:
+  // Vencimento 4 > Vencimento 3 > Vencimento 2 > Vencimento 1
+  const ultimoInformado = vencs
+    .sort((a, b) => b.numero - a.numero)[0];
+
+  return ultimoInformado;
+}
+```
+
+### Função responsável por mostrar a data na tabela
+
+```js
+function menorVencimentoTexto(rows) {
+  const vencimentos = rows
+    .map(r => getVencimentoAtualLinha(r))
+    .filter(x => x && x.data);
+
+  if (!vencimentos.length) return '—';
+
+  // Para cliente com vários itens, mostra a data informada mais recente
+  vencimentos.sort((a, b) => b.data - a.data);
+
+  return vencimentos[0].texto || '—';
+}
+```
+
+> Observação: o nome da função `menorVencimentoTexto` foi mantido para não quebrar chamadas existentes, mas a regra atual é mostrar a data mais recente entre os vencimentos atuais dos itens do cliente.
+
+---
+
+## 40. Correção do filtro de vencidos
+
+### Problema encontrado
+
+Alguns clientes apareciam no filtro **Vencidos** mesmo tendo a última data de vencimento no futuro.
+
+Isso acontecia porque uma regra antiga verificava **qualquer vencimento antigo** da linha. Exemplo:
+
+```txt
+Vencimento 1 = 18/04/2025
+Vencimento 2 = 23/10/2025
+```
+
+Antes, o filtro via o `Vencimento 1` antigo e classificava como vencido.
+
+Agora o filtro deve olhar somente para a **última data de vencimento informada**.
+
+### Arquivo alterado
+
+```txt
+public/js/utils.js
+```
+
+### Função corrigida
+
+```js
+function linhaTemVencimentoNoStatus(r, statusFiltro) {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const vencAtual = getVencimentoAtualLinha(r);
+
+  if (!vencAtual || !vencAtual.data) return false;
+
+  if (statusFiltro === 'red') return vencAtual.data < hoje;
+  if (statusFiltro === 'yellow') return mesmoDia(vencAtual.data, hoje);
+  if (statusFiltro === 'green') return vencAtual.data > hoje;
+
+  return true;
+}
+```
+
+### Resultado esperado
+
+```txt
+Filtro Vencidos → considera somente a última data preenchida
+Filtro Hoje     → considera somente a última data preenchida
+Filtro Futuro   → considera somente a última data preenchida
+```
+
+Exemplo:
+
+```txt
+Vencimento 1 = 18/04/2025
+Vencimento 2 = 23/10/2025
+```
+
+Se hoje for antes de `23/10/2025`, o cliente deve aparecer como **Futuro**, não como Vencido.
+
+---
+
+## 41. Esquema atual da aba Base
+
+A aba `Base` está organizada neste padrão:
+
+```txt
+A  Data da Venda
+B  IMEI
+C  Produto
+D  Cliente
+E  Valor
+F  Valor Recebido
+G  Valor Pendente
+H  Status
+I  Vencimento 1
+J  Forma de Pagamento 1
+K  Pagamento 1
+L  Vencimento 2
+M  Forma de Pagamento 2
+N  Pagamento 2
+O  Vencimento 3
+P  Forma de Pagamento 3
+Q  Pagamento 3
+R  Vencimento 4
+S  Forma de Pagamento 4
+T  Pagamento 4
+U  Observações
+V  Vencimento Atual
+W  .
+X  Dias
+```
+
+No código, a contagem começa em zero:
+
+```txt
+A = 0
+B = 1
+C = 2
+D = 3
+E = 4
+F = 5
+G = 6
+H = 7
+I = 8
+J = 9
+K = 10
+L = 11
+M = 12
+N = 13
+O = 14
+P = 15
+Q = 16
+R = 17
+S = 18
+T = 19
+U = 20
+V = 21
+W = 22
+X = 23
+```
+
+### Configuração atual no código
+
+Arquivo:
+
+```txt
+public/js/state.js
+```
+
+```js
+let COL_DATA_VENDA = 0;    // A = Data da Venda
+let COL_IMEI = 1;          // B = IMEI
+let COL_PRODUTO = 2;       // C = Produto
+let COL_CLIENTE = 3;       // D = Cliente
+let COL_VALOR = 4;         // E = Valor
+let COL_RECEBIDO = 5;      // F = Valor Recebido
+let COL_PENDENTE = 6;      // G = Valor Pendente
+let COL_STATUS = 7;        // H = Status
+let COL_VENCIMENTO = 8;    // I = Vencimento 1
+```
+
+Parcelas:
+
+```js
+let paymentPairs = [
+  { numero: 1, vencimentoCol: 8,  pagamentoCol: 10 },
+  { numero: 2, vencimentoCol: 11, pagamentoCol: 13 },
+  { numero: 3, vencimentoCol: 14, pagamentoCol: 16 },
+  { numero: 4, vencimentoCol: 17, pagamentoCol: 19 }
+];
+```
+
+---
+
+## 42. Fluxo de branches recomendado
+
+### Branch de produção
+
+```txt
+main
+```
+
+A VPS usa a branch `main`. Tudo que for para a `main` pode ir para produção.
+
+### Branch de alteração/teste
+
+Exemplo usado:
+
+```txt
+dash_mod
+```
+
+Para criar uma branch nova corretamente:
+
+```bash
+git checkout -b dash_mod
+```
+
+> Atenção: `git branch -b dash_mod` está errado. O correto é `git checkout -b dash_mod`.
+
+### Subir alteração para a branch de teste
+
+```bash
+git status
+git add .
+git commit -m "Update due date logic"
+git push -u origin dash_mod
+```
+
+### Mandar alteração para produção
+
+No computador local:
+
+```bash
+git checkout main
+git pull origin main
+git merge dash_mod
+git push origin main
+```
+
+Depois, na VPS:
+
+```bash
+cd /var/www/dash-billing
+git checkout main
+git pull origin main
+npm install
+pm2 restart dash-billing
+```
+
+---
+
+## 43. Fluxo atual de atualização da VPS
+
+Sempre que fizer `push` na `main`, atualize a VPS com:
+
+```bash
+ssh root@167.99.15.95
+cd /var/www/dash-billing
+git pull origin main
+npm install
+pm2 restart dash-billing
+```
+
+Depois confira:
+
+```bash
+pm2 status
+curl -I https://cobrancas.oneer.com.br
+```
+
+Resultado esperado:
+
+```txt
+HTTP/2 200
+x-powered-by: Express
+```
+
+---
+
+## 44. Segurança aplicada no Nginx
+
+O domínio `cobrancas.oneer.com.br` está apontando para o Node/PM2 por proxy reverso.
+
+Arquivo:
+
+```txt
+/etc/nginx/sites-available/cobrancas
+```
+
+Headers adicionados:
+
+```nginx
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+```
+
+Para testar:
+
+```bash
+nginx -t
+systemctl reload nginx
+curl -I https://cobrancas.oneer.com.br
+```
+
+Resultado esperado no `curl -I`:
+
+```txt
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+referrer-policy: strict-origin-when-cross-origin
+permissions-policy: geolocation=(), microphone=(), camera=()
+```
+
+Sites úteis para testar:
+
+```txt
+https://www.ssllabs.com/ssltest/
+https://developer.mozilla.org/en-US/observatory
+https://securityheaders.com/
+```
+
+Resultado já observado:
+
+```txt
+SSL Labs: A
+Mozilla Observatory: D- antes dos headers extras
+```
+
+Após adicionar os headers, o Observatory deve melhorar, mas pode ainda não chegar em A se não houver uma Content-Security-Policy completa.
+
+---
+
+## 45. Comandos rápidos para teste local
+
+Dentro do projeto no computador:
+
+```bash
+cd ~/Documentos/dash-cobrancas
+npm run dev
+```
+
+Abrir no navegador:
+
+```txt
+http://localhost:3000
+```
+
+Parar servidor local:
+
+```txt
+Ctrl + C
+```
+
+Se a porta 3000 estiver ocupada:
+
+```bash
+sudo lsof -i :3000
+kill -9 NUMERO_DO_PID
+```
+
+---
+
+## 46. Checklist após alterar regra de vencimento
+
+Depois de alterar a lógica de vencimento, testar:
+
+```txt
+1. Cliente com apenas Vencimento 1 preenchido.
+2. Cliente com Vencimento 1 antigo e Vencimento 2 futuro.
+3. Cliente com Vencimento 1 e 2 antigos, mas Vencimento 3 futuro.
+4. Cliente com Vencimento 4 preenchido.
+5. Filtro Vencidos.
+6. Filtro Hoje.
+7. Filtro Futuro.
+8. Contadores dos cards superiores.
+9. Popup do cliente.
+10. Mensagem/imagem gerada, se usar vencimento na cobrança.
+```
+
+Regra esperada:
+
+```txt
+A última data preenchida deve mandar no status do cliente.
+```
+
